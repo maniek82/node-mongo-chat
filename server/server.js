@@ -4,12 +4,17 @@ const express = require("express");
 const socketIO = require("socket.io");
 const {generateMessage, generateLocationMessage} = require("./utils/message");
 const {isRealString} = require("./utils/validation");
-const {Users} = require("./utils/users");
+// const {Users} = require("./utils/users");
+const {User} = require("./models/user-model");
 const publicPath = path.join(__dirname, '../public');
+
+var {mongoose} = require("./db/mongoose");
+
+
 var app = express();
 var server = http.createServer(app);
 var io = socketIO(server);
-var users = new Users();
+
 
 app.use(express.static(publicPath));
 var count =0;
@@ -25,13 +30,24 @@ io.on('connection', (socket)=> {
         }
         
         socket.join(params.room);
-        users.removeUser(socket.id);//usuwa usera z wczesnejszego czatu zanim wejdzie na nowy
-        users.addUser(socket.id,params.name,params.room);
-        io.to(params.room).emit('updateUserList',users.getUserList(params.room));
+        var user = new User();
+        // User.removeUser(socket.id);//usuwa usera z wczesnejszego czatu zanim wejdzie na nowy
+        // User.save({
+        //     name: params.name,
+        //     room: params.room,
+        //     socketId: socket.id
+        // }).then((user)=> {
+        //     console.log(user);
+        // }).catch((e)=> {
+        //     console.log(e);
+        // });
+        user.addUser(socket.id, params.name, params.room);
+        io.to(params.room).emit('updateUserList',user.getUserListg(params.room));
+        
+        
         //io.emit - to wszytkich
         //socket.broadcast.emit = to wszystkich proch tego co wysyla
         //socket.emit - to 1 user
-        
         //ROOM
         //io.to('nazwa roomu').emit()
         //socket.broadcast.to('nazwa roomu').emit()
@@ -43,7 +59,7 @@ io.on('connection', (socket)=> {
     });
     
     socket.on('createMessage',(message, callback)=> {
-      var user = users.getUser(socket.id);
+      var user = User.getUser(socket.id);
       if(user && isRealString(message.text)) {
           io.to(user.room).emit('newMessage',generateMessage(user.name, message.text)); 
       }
@@ -53,7 +69,7 @@ io.on('connection', (socket)=> {
     });
     
     socket.on('createLocationMessage',(coords) => {
-        var user = users.getUser(socket.id);
+        var user = User.getUser(socket.id);
         if(user) {
         io.to(user.room).emit('newLocationMessage',generateLocationMessage(user.name, coords.latitude, coords.longitude));
         }
@@ -62,9 +78,9 @@ io.on('connection', (socket)=> {
     
     socket.on('disconnect',()=> {
         
-       var user = users.removeUser(socket.id);
+       var user = User.removeUser(socket.id);
        if(user) {
-           io.to(user.room).emit('updateUserList',users.getUserList(user.room));
+           io.to(user.room).emit('updateUserList',User.getUserList(user.room));
            io.to(user.room).emit('newMessage',generateMessage('Admin',`${user.name} has left.`))
        }
     });

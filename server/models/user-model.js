@@ -1,101 +1,78 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const _ = require("lodash");
 
 var UserSchema = new mongoose.Schema({
     
-    userName: {
+    name: {
         type: String,
         required: true,
         trim: true,
         minlength: 3,
-        unique: true,
-        validate: {
-            validator: validator.isEmail,
-            message: '(VALUE) is not a valid email'
-         }
-       }
+        unique: true
+    },
+    room: {
+        type:String,
+        required: true,
+        trim: true,
+        minlength:3
+       },
+    socketId: {
+        type: String,
+        required: true
+        }
         
 });
-//INSTANCE METHODS
+
 UserSchema.methods.toJSON = function () {
     var user = this;
     var userObject = user.toObject();
-    return _.pick(userObject, ['_id','email']);
+    return _.pick(userObject, ['_id','name','room','socket']);
 };
 
-UserSchema.methods.generateAuthToken = function () {
-   var user = this;
-   var access = 'auth';
-   var token = jwt.sign({_id: user._id.toHexString(), access},process.env.JWT_SECRET).toString();
-   
-   user.tokens.push({access, token});
-  return user.save().then(()=> {
-       return token;
-   });
-};
-UserSchema.methods.removeToken = function(token) {
-    var user = this;
-   return user.update({
-        $pull: {
-            tokens: {
-                token: token
-            }
-        }
-    });
-};
-//MODEL METHODS
-UserSchema.statics.findByToken = function (token) {
-    var User = this;
-    var decoded;
-    
-    try {
-      decoded =  jwt.verify(token,process.env.JWT_SECRET);
-    }catch (e) {
-        // return new Promise((resolve,reject)=> {
-        //     reject();
-        // });
-        return Promise.reject();
-    }
-   return User.findOne({
-       '_id': decoded._id,
-       'tokens.token': token,
-       'tokens.access': 'auth'
-   });
-};
-
-UserSchema.statics.findByCredentials = function (email, password) {
-    var User = this;
-    return User.findOne({email}).then((user)=>{
-        if(!user) {
-            return Promise.reject();
-        }
-        return new Promise((resolve,reject)=> {
-            bcrypt.compare(password,user.password,(err,res)=> {
-                if(res) {
-                    resolve(user);
-                }else {
-                    reject();
-                }
-            })
+ UserSchema.methods.addUser = function(name, room, socket) {
+     var user = this;
+     user = new User({
+            name,
+            room,
+            socket
         });
-    });
+       user.save().then((user)=> {
+           return user;
+       },(e)=> {
+           console.log(e);
+       })
+     };
+     
+UserSchema.methods.removeUser = function(socket) {
+    var user = this;
+      user.findOneAndRemove({socket}).then((user)=>{
+           console.log("User removed"+ user);
+        }).catch((e)=> {
+         console.log(e)
+     });
 };
 
-//mongoose midleware sprawdza haslo
-//ivent = 'save' 
-UserSchema.pre('save',function (next) {
-    var user = this;
-    if(user.isModified('password')) {
-       bcrypt.genSalt(10,(err,salt)=> {
-           bcrypt.hash(user.password, salt,(err, hash)=> {
-               user.password = hash;
-               next();
-           });
-       });
-    }else {
-        next();
-    }
-});
+UserSchema.statics.getUser = function(socket) {
+        var User = this;
+        User.findOne({socket}).then((user)=>{
+           console.log("User found"+ user);
+        }).catch((e)=> {
+         console.log(e)
+     });
+
+ };
+UserSchema.methods.getUserList = function(room) {
+         var user = this;
+         user.find({room}).then((users)=>{
+              var namesArray = users.map((user)=> user.name);
+                 return namesArray;
+         }).catch((e)=> {
+             console.log(e);
+         });
+         
+ }
+
 var User = mongoose.model('User', UserSchema);
 
 module.exports = {User};
