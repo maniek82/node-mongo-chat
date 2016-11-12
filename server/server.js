@@ -30,28 +30,12 @@ io.on('connection', (socket)=> {
         }
         
         socket.join(params.room);
-        var user = new User();
-        // User.removeUser(socket.id);//usuwa usera z wczesnejszego czatu zanim wejdzie na nowy
-        // User.save({
-        //     name: params.name,
-        //     room: params.room,
-        //     socketId: socket.id
-        // }).then((user)=> {
-        //     console.log(user);
-        // }).catch((e)=> {
-        //     console.log(e);
-        // });
-        user.addUser(socket.id, params.name, params.room);
-        io.to(params.room).emit('updateUserList',user.getUserListg(params.room));
+       
+     
+        User.addUser(socket.id, params.name, params.room);
+        io.to(params.room).emit('updateUserList',User.getUserListg(params.room));
         
-        
-        //io.emit - to wszytkich
-        //socket.broadcast.emit = to wszystkich proch tego co wysyla
-        //socket.emit - to 1 user
-        //ROOM
-        //io.to('nazwa roomu').emit()
-        //socket.broadcast.to('nazwa roomu').emit()
-        //socket.emit
+     
     socket.emit('newMessage',generateMessage('Admin','Welcome to chat app'));
    
     socket.broadcast.to(params.room).emit('newMessage',generateMessage('Admin',`${params.name} has joined.`));
