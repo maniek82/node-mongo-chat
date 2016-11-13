@@ -69,6 +69,27 @@ io.on('connection', (socket)=> {
         }
         
     });
+  //SEARCHING ARCHIVED MESSAGES
+    socket.on('searchByUser', (message,callback) => {
+        console.log("from search" ,message);
+        var userMessages = Chat.find({name: message.text}).then((messages)=>{
+            if(messages) {
+                var messagesArray = messages.map((message)=> message.message);
+                  var generateSearchedMessage = () =>{
+                      return messagesArray;
+                  }
+                    var user = users.getUser(socket.id);
+                    if(user && isRealString(message.text)) {
+                      io.to(user.room).emit('newFounded',generateSearchedMessage()); 
+                  }
+            }
+        }).catch((e)=> {
+            console.log(e);
+        });
+        
+      
+    });
+    
     
     socket.on('disconnect',()=> {
         

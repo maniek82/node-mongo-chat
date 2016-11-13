@@ -118,7 +118,26 @@
    alert('Unable to fetch leocation.');
   });
  });
+//SEARCH FORM
 
-
+ jQuery('#search-user').on('submit',function(e) {
+   e.preventDefault();
    
+   var userSearch = jQuery('[name=user]');
+   socket.emit('searchByUser',{
+    text: userSearch.val()
+   }, function() {
+     userSearch.val('romek');
+   });
+ });
    
+   socket.on('newFounded',function(messages) {
+      var ul = jQuery('<ul></ul>');
+      if(messages){
+        messages.forEach(function(message){
+        ul.append(jQuery('<li></li>').text(message));
+        jQuery('#searched-messages').html(ul);
+      });
+      }
+     
+   });
