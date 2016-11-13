@@ -4,8 +4,8 @@ const express = require("express");
 const socketIO = require("socket.io");
 const {generateMessage, generateLocationMessage} = require("./utils/message");
 const {isRealString} = require("./utils/validation");
-// const {Users} = require("./utils/users");
-const {User} = require("./models/user-model");
+ const {Users} = require("./utils/users");
+const {Chat} = require("./models/chat");
 const publicPath = path.join(__dirname, '../public');
 
 var {mongoose} = require("./db/mongoose");
@@ -14,13 +14,13 @@ var {mongoose} = require("./db/mongoose");
 var app = express();
 var server = http.createServer(app);
 var io = socketIO(server);
-
+var users = new Users();
 
 app.use(express.static(publicPath));
 var count =0;
 io.on('connection', (socket)=> {
-    count++;
-    console.log(`New user connected! Total users -${count}-`);
+
+    console.log(`New user connected!`);
   
   
  //JOIN    
@@ -30,12 +30,18 @@ io.on('connection', (socket)=> {
         }
         
         socket.join(params.room);
-       
-     
-        User.addUser(socket.id, params.name, params.room);
-        io.to(params.room).emit('updateUserList',User.getUserListg(params.room));
         
-     
+        users.removeUser(socket.id);//usuwa usera z wczesnejszego czatu zanim wejdzie na nowy
+        users.addUser(socket.id,params.name,params.room);
+        io.to(params.room).emit('updateUserList',users.getUserList(params.room));
+        //io.emit - to wszytkich
+        //socket.broadcast.emit = to wszystkich proch tego co wysyla
+        //socket.emit - to 1 user
+        
+        //ROOM
+        //io.to('nazwa roomu').emit()
+        //socket.broadcast.to('nazwa roomu').emit()
+        //socket.emit
     socket.emit('newMessage',generateMessage('Admin','Welcome to chat app'));
    
     socket.broadcast.to(params.room).emit('newMessage',generateMessage('Admin',`${params.name} has joined.`));
@@ -43,9 +49,13 @@ io.on('connection', (socket)=> {
     });
     
     socket.on('createMessage',(message, callback)=> {
-      var user = User.getUser(socket.id);
+      var user = users.getUser(socket.id);
       if(user && isRealString(message.text)) {
           io.to(user.room).emit('newMessage',generateMessage(user.name, message.text)); 
+          var chat = new Chat({name: user.name, message: message.text});
+          chat.save().then((msg)=>{
+              console.log(('Message saved'));
+          }).catch((e)=> console.log(e));
       }
         
        
@@ -53,7 +63,7 @@ io.on('connection', (socket)=> {
     });
     
     socket.on('createLocationMessage',(coords) => {
-        var user = User.getUser(socket.id);
+        var user = users.getUser(socket.id);
         if(user) {
         io.to(user.room).emit('newLocationMessage',generateLocationMessage(user.name, coords.latitude, coords.longitude));
         }
@@ -62,9 +72,9 @@ io.on('connection', (socket)=> {
     
     socket.on('disconnect',()=> {
         
-       var user = User.removeUser(socket.id);
+       var user = users.removeUser(socket.id);
        if(user) {
-           io.to(user.room).emit('updateUserList',User.getUserList(user.room));
+           io.to(user.room).emit('updateUserList',users.getUserList(user.room));
            io.to(user.room).emit('newMessage',generateMessage('Admin',`${user.name} has left.`))
        }
     });
